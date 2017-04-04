@@ -43,9 +43,19 @@ int main(int argc, const char** argv)
 			collect[x][y] = 0;
 		}
 	}
+	//combined vector
+	int **vectors;
+	vectors = new int*[11];
+	for (int x = 0; x < 11; ++x) {
+		vectors[x] = new int[2500];
+		for (int y = 0; y < 2500; ++y) {
+			vectors[x][y] = 0;
+		}
+	}
 
 	//read the rest of the images to add them up pixel by pixel
 	Mat img;
+	int s = 0;
 	for (int i = 2; i <= 10; i++) {
 		//1. read in the file
 		string file = to_string(i) + ".jpg";
@@ -53,30 +63,44 @@ int main(int argc, const char** argv)
 		if (img.empty()) { //Checkpoint
 			cout << "Error[imageload loop] : Image cannot be loaded" << endl;
 			return -1;
-		} 
+		}
 		//2. collect total values
+		s = 0;
 		for (int n = 0; n < 50; n++) {
 			for (int k = 0; k < 50; k++) {
 				Scalar intensity = img.at<uchar>(n, k);
 				collect[n][k] += intensity.val[0];
+				vectors[i][s] = intensity.val[0];
+				++s;
 			}
 		}
 		//3. input average back into one image
 		for (int n = 0; n < 50; n++) {
 			for (int k = 0; k < 50; k++) {
 				Scalar intensity2 = average.at<uchar>(n, k);
-				intensity2.val[0]= (collect[n][k]) / 10;
-				average.at<uchar>(n,k) = intensity2.val[0];
+				intensity2.val[0] = (collect[n][k]) / 10;
+				average.at<uchar>(n, k) = intensity2.val[0];
 			}
 		}
 
 	}
+	//subtract average face vector from face vectors
+
+
+	//imwrite("result.jpg", average);
 	namedWindow("MyWindow", WINDOW_NORMAL); //create a window with the name "MyWindow"
 	imshow("MyWindow", average); //display the image which is stored in the 'img' in the "MyWindow" window
 
 	waitKey(0); //wait infinite time for a keypress
 
 	destroyWindow("MyWindow"); //destroy the window with the name, "MyWindow"
-
+	
+	for (int i = 0; i < 50; ++i) {
+		delete[i]collect;
+	}
+	
+	for (int i = 0; i < 11; ++i) {
+			delete[i] vectors;
+	}
 	return 0;
 }

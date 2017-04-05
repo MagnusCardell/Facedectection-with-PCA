@@ -84,7 +84,7 @@ int main(int argc, const char** argv) {
 				Scalar intensity2 = average.at<uchar>(n, k);
 				intensity2.val[0] = (collect[n][k]) / 10;
 				average.at<uchar>(n, k) = intensity2.val[0];
-				trainingdata[0][s]= intensity2.val[0];
+				trainingdata[s][0]= intensity2.val[0];
 				++s;
 			}
 		}
@@ -94,24 +94,29 @@ int main(int argc, const char** argv) {
 	//subtract average face vector from face vectors
 	for (int i = 0; i < 10; ++i) {
 		for (int n = 0; n < 2500; ++n) {
-			trainingdata[i + 1][n] -= trainingdata[0][n];
+			trainingdata[n][i+1] -= trainingdata[n][0];
 		}
 	}
-	for (int i = 0; i < 2500; i++) {
-		cout << trainingdata[1][i] << " ";
-	}
-	Mat trainingmatrix(trainingdata.size(), trainingdata[0].size(), average.type());
-	for (size_t i = 0; i < trainingdata.size(); i++) {
-		for (size_t j = 0; j < trainingdata[0].size(); j++) {
-			trainingmatrix.at<int>(i, j) = trainingdata[i][j];
+	//create the matrix to perform matrix operations with
+	Mat trainingmatrix=Mat::zeros(trainingdata.size(), trainingdata[0].size(), image.type());
+	for (int i = 0; i < trainingdata.size(); i++) {
+		for (int j = 0; j < trainingdata[i].size(); j++) {
+			Scalar value = trainingmatrix.at<uchar>(i,j);
+			value.val[0] = trainingdata[i][j];
+			trainingmatrix.at<uchar>(i, j) = value.val[0];
 		}
 	}
+
 	//Calculate the Covariance matrix
-	Mat trainingB;
-	transpose(trainingmatrix, trainingB);
-	Mat Covmatrix;
-	Covmatrix= trainingmatrix * trainingB;
-	cout << "Columns " << Covmatrix.cols << " Rows " << Covmatrix.rows << endl;
+	trainingmatrix.convertTo(trainingmatrix, CV_32FC1);
+	Mat trainingP = trainingmatrix.t();
+	Mat Covmatrix= trainingmatrix * trainingP;
+	//cout << "Columns " << Covmatrix<< endl;
+
+	//Calculate the eigenvectors and eigenvalues
+	PCA pt_pca(Covmatrix, Mat(), CV_PCA_DATA_AS_ROW, 0);
+	Mat eigenvalue = pt_pca.eigenvalues;
+	cout << eigenvalue.at<float>(2,2)<< endl;
 
 	//imwrite("result.jpg", average);
 	namedWindow("MyWindow", WINDOW_NORMAL); //create a window with the name "MyWindow"

@@ -22,19 +22,30 @@ To pass arguments i.e. input?
 #include "opencv2/core.hpp"
 #include <string> 
 #include <iostream>
-
+#include <vector>
 using namespace cv;
 using namespace std;
 
-int main(int argc, const char** argv)
-{
-	//read first image to create the blueprint
-	Mat average = imread("1.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-	if (average.empty()) { //Checkpoint
-		cout << "Error [blueprint creation] : Image cannot be loaded" << endl;
-		return -1;
+/**Function readimage
+	1 argument - string: file
+	-Read .jpg file associated with that filename and store in a matrix
+	Return matrix - Mat: image
+*/
+Mat readimage(string file) {
+	Mat image = imread(file, CV_LOAD_IMAGE_GRAYSCALE);
+	if (image.empty()) { //Checkpoint
+		cout << "Error [image read in] : Image cannot be loaded" << endl;
 	}
-	//empty 2D array for doing arithmetic operations on
+	return image;
+}
+
+//Main Function
+int main(int argc, const char** argv) {
+	//read first image then create the blueprint
+	Mat image = readimage("1.jpg");
+	Mat average = Mat::zeros(image.size(), image.type());
+
+	//empty 2D array for accumulating pixel values over 255 and computing average
 	int **collect;
 	collect = new int*[50];
 	for (int x = 0; x < 50; ++x) {
@@ -43,49 +54,64 @@ int main(int argc, const char** argv)
 			collect[x][y] = 0;
 		}
 	}
-	//combined vector
-	int **vectors;
-	vectors = new int*[11];
-	for (int x = 0; x < 11; ++x) {
-		vectors[x] = new int[2500];
-		for (int y = 0; y < 2500; ++y) {
-			vectors[x][y] = 0;
-		}
-	}
 
-	//read the rest of the images to add them up pixel by pixel
-	Mat img;
+	//read the rest of the images to add them up pixel by pixel to the collect array
+	int no_of_cols = 11;
+	int no_of_rows = 2500;
+	int initial_value = 0;
+	vector< vector<int > > trainingdata;
+	trainingdata.resize(no_of_rows, std::vector<int>(no_of_cols, initial_value));
 	int s = 0;
-	for (int i = 2; i <= 10; i++) {
+	for (int i = 1; i <= 10; ++i) {
+		s = 0;
 		//1. read in the file
 		string file = to_string(i) + ".jpg";
-		img = imread(file, CV_LOAD_IMAGE_GRAYSCALE);
-		if (img.empty()) { //Checkpoint
-			cout << "Error[imageload loop] : Image cannot be loaded" << endl;
-			return -1;
-		}
+		image = readimage(file);
 		//2. collect total values
-		s = 0;
 		for (int n = 0; n < 50; n++) {
 			for (int k = 0; k < 50; k++) {
-				Scalar intensity = img.at<uchar>(n, k);
+				Scalar intensity = image.at<uchar>(n, k);
 				collect[n][k] += intensity.val[0];
-				vectors[i][s] = intensity.val[0];
+				trainingdata[s][i]= intensity.val[0];
+				//vectors[i][s] = intensity.val[0];
 				++s;
 			}
 		}
+		s = 0;
 		//3. input average back into one image
 		for (int n = 0; n < 50; n++) {
 			for (int k = 0; k < 50; k++) {
 				Scalar intensity2 = average.at<uchar>(n, k);
 				intensity2.val[0] = (collect[n][k]) / 10;
 				average.at<uchar>(n, k) = intensity2.val[0];
+				trainingdata[0][s]= intensity2.val[0];
+				++s;
 			}
 		}
 
 	}
-	//subtract average face vector from face vectors
 
+	//subtract average face vector from face vectors
+	for (int i = 0; i < 10; ++i) {
+		for (int n = 0; n < 2500; ++n) {
+			trainingdata[i + 1][n] -= trainingdata[0][n];
+		}
+	}
+	for (int i = 0; i < 2500; i++) {
+		cout << trainingdata[1][i] << " ";
+	}
+	Mat trainingmatrix(trainingdata.size(), trainingdata[0].size(), average.type());
+	for (size_t i = 0; i < trainingdata.size(); i++) {
+		for (size_t j = 0; j < trainingdata[0].size(); j++) {
+			trainingmatrix.at<int>(i, j) = trainingdata[i][j];
+		}
+	}
+	//Calculate the Covariance matrix
+	Mat trainingB;
+	transpose(trainingmatrix, trainingB);
+	Mat Covmatrix;
+	Covmatrix= trainingmatrix * trainingB;
+	cout << "Columns " << Covmatrix.cols << " Rows " << Covmatrix.rows << endl;
 
 	//imwrite("result.jpg", average);
 	namedWindow("MyWindow", WINDOW_NORMAL); //create a window with the name "MyWindow"
@@ -95,12 +121,26 @@ int main(int argc, const char** argv)
 
 	destroyWindow("MyWindow"); //destroy the window with the name, "MyWindow"
 	
-	for (int i = 0; i < 50; ++i) {
-		delete[i]collect;
-	}
-	
-	for (int i = 0; i < 11; ++i) {
-			delete[i] vectors;
-	}
+
 	return 0;
 }
+
+/** 
+//combined vector
+int **vectors;
+vectors = new int*[11];
+for (int x = 0; x < 11; ++x) {
+vectors[x] = new int[2500];
+for (int y = 0; y < 2500; ++y) {
+vectors[x][y] = 0;
+}
+}
+
+for (int i = 0; i < 50; ++i) {
+delete[i]collect;
+}
+
+for (int i = 0; i < 11; ++i) {
+delete[i] vectors;
+}
+*/

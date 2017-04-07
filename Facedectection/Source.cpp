@@ -40,48 +40,10 @@ Mat readimage(string file) {
 	}
 	return image;
 }
-struct params
-{
-	Mat data;
-	int ch;
-	int rows;
-	PCA pca;
-	string winName;
-};
-Mat asRowMatrix(vector<Mat>& faces) {
-	// Number of samples:
-	int n = faces.size();
-	if (n == 0) {
-		return Mat();
-	}
-	// dimensionality of (reshaped) samples
-	int d = faces[0].total();
-	// Create returning data matrix and copy over data:
-	Mat data(n, d, CV_32FC1);
-	for (int i = 0; i < n; i++) {
-		if (faces[i].empty()) {
-			string error_message = format("Image number %d was empty, please check your input data.", i);
-		}
-		if (faces[i].total() != d) {
-			string error_message = format("Wrong number of elements in matrix #%d! Expected %d was %d.", i, d, faces[i].total());
-		}
-		// Get a hold of the current row:
-		Mat xi = data.row(i);
-		// Make reshape happy by cloning for non-continuous matrices:
-		if (faces[i].isContinuous()) {
-			faces[i].reshape(1, 1).convertTo(xi, CV_32FC1, 1, 0);
-		}
-		else {
-			faces[i].clone().reshape(1, 1).convertTo(xi, CV_32FC1, 1, 0);
-		}
-	}
-	return data;
-}
-static  Mat formatImagesForPCA(const vector<Mat> &data)
-{
+
+static  Mat formatImagesForPCA(const vector<Mat> &data) {
 	Mat dst(static_cast<int>(data.size()), data[0].rows*data[0].cols, CV_32F);
-	for (unsigned int i = 0; i < data.size(); i++)
-	{
+	for (unsigned int i = 0; i < data.size(); i++) {
 		Mat image_row = data[i].clone().reshape(1, 1);
 		Mat row_i = dst.row(i);
 		image_row.convertTo(row_i, CV_32F);
@@ -89,6 +51,24 @@ static  Mat formatImagesForPCA(const vector<Mat> &data)
 	return dst;
 }
 
+
+// Normalizes a given image into a value range between 0 and 255.
+Mat norm_0_255(const Mat& src) {
+	// Create and return normalized image:
+	Mat dst;
+	switch (src.channels()) {
+	case 1:
+		cv::normalize(src, dst, 0, 255, NORM_MINMAX, CV_8UC1);
+		break;
+	case 3:
+		cv::normalize(src, dst, 0, 255, NORM_MINMAX, CV_8UC3);
+		break;
+	default:
+		src.copyTo(dst);
+		break;
+	}
+	return dst;
+}
 //Main Function
 int main(int argc, const char** argv) {
 	//read first image then replace all values to create a blueprint
@@ -137,7 +117,7 @@ int main(int argc, const char** argv) {
 	//subtract average faces:
 	for (int i = 0; i<10; i++) {
 		faces[i] -= average;
-		imshow("window" + i, faces[i]);
+		//imshow("window" + i, faces[i]);
 	}
 	//Get the covariance matrix
 	Mat combine = formatImagesForPCA(faces); //function for pushing all images into one matrix
@@ -146,7 +126,7 @@ int main(int argc, const char** argv) {
 
 	//cout << "covriance = " << endl << " " << covariance << endl << endl;
 	cout << covariance.size() << endl;
-	imshow("Covariance", covariance);
+	//imshow("Covariance", covariance);
 
 	//Get Egienvalues and eigenvectors
 	Mat eigenval, eigenvect;
@@ -156,19 +136,63 @@ int main(int argc, const char** argv) {
 	cout << "eigenval = " << endl << " " << eigenval << endl << endl;
 	cout << "Eigenval size: " << eigenval.size() << " Eigenvect size: " << eigenvect.size() << endl;
 	//cout << "eigenvect = " << endl << " " << eigenvect << endl << endl;
-	imshow("eigen", eigenval);
+
+
+	//Get the top 4 vectors from top 4 eigenvalues
+	Mat top4vectors;
+	top4vectors.push_back(eigenvect.row(0));
+	top4vectors.push_back(eigenvect.row(1));
+	top4vectors.push_back(eigenvect.row(2));
+	top4vectors.push_back(eigenvect.row(3));
+
+
+	Mat mean = pca.mean.clone();
+	Mat eigenvalues = pca.eigenvalues.clone();
+	Mat eigenvectors = pca.eigenvectors.clone();
+
+	imshow("avg", norm_0_255(mean.reshape(1, faces[0].rows)));
+
+	// The first three eigenfaces:
+	imshow("pc1", norm_0_255(pca.eigenvectors.row(0)).reshape(1, faces[0].rows));
+	imshow("pc2", norm_0_255(pca.eigenvectors.row(1)).reshape(1, faces[0].rows));
+	imshow("pc3", norm_0_255(pca.eigenvectors.row(2)).reshape(1, faces[0].rows));
 	/**
-	//Choose best eigenvector values
-	Mat vectoreigen(40,2500,CV_32FC1);
-	vectoreigen.push_back(eigenvect.row(0));
-	vectoreigen.push_back(eigenvect.row(1));
-	vectoreigen.push_back(eigenvect.row(2));
-	vectoreigen.push_back(eigenvect.row(3));
-	cout << vectoreigen.size() << endl;
+	//Multiply each eigenvector with each of the (face - average) matrix
+	vector<Mat> eigenfaces;
+	for (int n = 0; n < 4; n++) {
+		for (int i = 0; i < 10; i++) {
+			Mat ev = top4vectors.col(i).clone();
+			// Reshape to original size & normalize to [0...255] for imshow.
+			Mat grayscale = norm_0_255(ev.reshape(1, 50));
+			imshow("WHAT" + i + n, grayscale);
+			//eigenfaces.push_back(faces[i].mul(grayscale));
 
-	Mat faces[0] = faces[0] - vectoreigen.row(0);
+		}
+	}
+	for (int i = 0; i < eigenfaces.size(); i++) {
+		//imshow("face" + i, eigenfaces[i]);
+	}
+	//Mat faces[0] = faces[0] - vectoreigen.row(0);
 
+	/**
+	vector<Mat> eigenfaces;
+	for (int i = 0; i < combine.rows; i++) {
+		Mat p = LDA::subspaceProject(eigenvect, average, combine.row(i));
+		eigenfaces.push_back(p);
+		imshow("window"+i, eigenfaces[i]);
+	}
+
+	Mat eigenfaces(2500, 40, CV_32F);
+	for (int i = 0; i == 3; i++) {
+		for (int x = 0; x < 10; x++) {
+			for (int y = 0; y < 2500; y++) {
+				eigenfaces.at<float>(y, (x + ((i * 10)))) = combine.at<float>(y, x) - eigenvect.at<float>(y, i);
+			}
+		}
+
+	}
 	*/
+
 	//imwrite("result.jpg", average);
 	namedWindow("MyWindow", WINDOW_NORMAL); //create a window with the name "MyWindow"
 	imshow("MyWindow", average); //display the image which is stored in the 'img' in the "MyWindow" window

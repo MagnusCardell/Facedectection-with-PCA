@@ -89,21 +89,6 @@ static  Mat formatImagesForPCA(const vector<Mat> &data)
 	return dst;
 }
 
-
-PCA compressPCA(const Mat& pcaset, int maxComponents) {
-	PCA pca(pcaset, // pass the data
-		Mat(), // we do not have a pre-computed mean vector,
-			   // so let the PCA engine to compute it
-		PCA::DATA_AS_ROW, // indicate that the vectors
-						  // are stored as matrix rows
-						  // (use PCA::DATA_AS_COL if the vectors are
-						  // the matrix columns)
-		maxComponents // specify, how many principal components to retain
-	);
-	// if there is no test data, just return the computed basis, ready-to-use
-	return pca;
-}
-
 //Main Function
 int main(int argc, const char** argv) {
 	//read first image then replace all values to create a blueprint
@@ -152,7 +137,7 @@ int main(int argc, const char** argv) {
 	//subtract average faces:
 	for (int i = 0; i<10; i++) {
 		faces[i] -= average;
-		//imshow("window" + i, faces[i]);
+		imshow("window" + i, faces[i]);
 	}
 	//Get the covariance matrix
 	Mat combine = formatImagesForPCA(faces); //function for pushing all images into one matrix
@@ -161,24 +146,29 @@ int main(int argc, const char** argv) {
 
 	//cout << "covriance = " << endl << " " << covariance << endl << endl;
 	cout << covariance.size() << endl;
+	imshow("Covariance", covariance);
 
 	//Get Egienvalues and eigenvectors
 	Mat eigenval, eigenvect;
-	//PCA pca;
-	//pca = PCA(covariance, mean2, PCA::DATA_AS_ROW, 10);
-	//cout << "done!   # of principal components: " << pca.eigenvectors.rows << endl;
-	Mat covar2;
-	
-	//PCA pca(covariance, Mat(), CV_PCA_DATA_AS_ROW, 10);
-	Mat testset;
-	//PCA cmp = compressPCA(combine, 10);
 	PCA pca(combine, Mat(), PCA::DATA_AS_ROW, 10);
 	eigenval = pca.eigenvalues;
-	cout << "eigenval = " << endl << " " << eigenval << endl << endl;
 	eigenvect = pca.eigenvectors;
+	cout << "eigenval = " << endl << " " << eigenval << endl << endl;
+	cout << "Eigenval size: " << eigenval.size() << " Eigenvect size: " << eigenvect.size() << endl;
 	//cout << "eigenvect = " << endl << " " << eigenvect << endl << endl;
-	
+	imshow("eigen", eigenval);
+	/**
+	//Choose best eigenvector values
+	Mat vectoreigen(40,2500,CV_32FC1);
+	vectoreigen.push_back(eigenvect.row(0));
+	vectoreigen.push_back(eigenvect.row(1));
+	vectoreigen.push_back(eigenvect.row(2));
+	vectoreigen.push_back(eigenvect.row(3));
+	cout << vectoreigen.size() << endl;
 
+	Mat faces[0] = faces[0] - vectoreigen.row(0);
+
+	*/
 	//imwrite("result.jpg", average);
 	namedWindow("MyWindow", WINDOW_NORMAL); //create a window with the name "MyWindow"
 	imshow("MyWindow", average); //display the image which is stored in the 'img' in the "MyWindow" window

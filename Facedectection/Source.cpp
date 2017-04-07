@@ -18,8 +18,10 @@ To pass arguments i.e. input?
 
 #include "opencv2/photo.hpp"
 #include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/core.hpp"
+#include <opencv2/highgui.hpp>
+#include "opencv2/highgui/highgui.hpp"
+#include <opencv2/core.hpp>
+#include "opencv2/imgcodecs.hpp"
 #include <string> 
 #include <iostream>
 #include <vector>
@@ -38,7 +40,14 @@ Mat readimage(string file) {
 	}
 	return image;
 }
-
+struct params
+{
+	Mat data;
+	int ch;
+	int rows;
+	PCA pca;
+	string winName;
+};
 Mat asRowMatrix(vector<Mat>& faces) {
 	// Number of samples:
 	int n = faces.size();
@@ -67,6 +76,32 @@ Mat asRowMatrix(vector<Mat>& faces) {
 		}
 	}
 	return data;
+}
+static  Mat formatImagesForPCA(const vector<Mat> &data)
+{
+	Mat dst(static_cast<int>(data.size()), data[0].rows*data[0].cols, CV_32F);
+	for (unsigned int i = 0; i < data.size(); i++)
+	{
+		Mat image_row = data[i].clone().reshape(1, 1);
+		Mat row_i = dst.row(i);
+		image_row.convertTo(row_i, CV_32F);
+	}
+	return dst;
+}
+
+
+PCA compressPCA(const Mat& pcaset, int maxComponents) {
+	PCA pca(pcaset, // pass the data
+		Mat(), // we do not have a pre-computed mean vector,
+			   // so let the PCA engine to compute it
+		PCA::DATA_AS_ROW, // indicate that the vectors
+						  // are stored as matrix rows
+						  // (use PCA::DATA_AS_COL if the vectors are
+						  // the matrix columns)
+		maxComponents // specify, how many principal components to retain
+	);
+	// if there is no test data, just return the computed basis, ready-to-use
+	return pca;
 }
 
 //Main Function
@@ -120,16 +155,29 @@ int main(int argc, const char** argv) {
 		//imshow("window" + i, faces[i]);
 	}
 	//Get the covariance matrix
-	Mat combine = asRowMatrix(faces);
-	cout << combine.size() << endl;
+	Mat combine = formatImagesForPCA(faces); //function for pushing all images into one matrix
 	Mat covariance, mean2;
-	calcCovarMatrix(combine, covariance, mean2, COVAR_ROWS | cv::COVAR_SCRAMBLED);
+	calcCovarMatrix(combine, covariance, mean2, COVAR_ROWS| cv::COVAR_NORMAL);
 
-	imshow("MyWindsdow", mean2);
+	//cout << "covriance = " << endl << " " << covariance << endl << endl;
 	cout << covariance.size() << endl;
 
-	PCA pca(combine, Mat(), CV_PCA_DATA_AS_ROW, 10);
-	Mat mean = pca.mean.clone();
+	//Get Egienvalues and eigenvectors
+	Mat eigenval, eigenvect;
+	//PCA pca;
+	//pca = PCA(covariance, mean2, PCA::DATA_AS_ROW, 10);
+	//cout << "done!   # of principal components: " << pca.eigenvectors.rows << endl;
+	Mat covar2;
+	
+	//PCA pca(covariance, Mat(), CV_PCA_DATA_AS_ROW, 10);
+	Mat testset;
+	//PCA cmp = compressPCA(combine, 10);
+	PCA pca(combine, Mat(), PCA::DATA_AS_ROW, 10);
+	eigenval = pca.eigenvalues;
+	cout << "eigenval = " << endl << " " << eigenval << endl << endl;
+	eigenvect = pca.eigenvectors;
+	//cout << "eigenvect = " << endl << " " << eigenvect << endl << endl;
+	
 
 	//imwrite("result.jpg", average);
 	namedWindow("MyWindow", WINDOW_NORMAL); //create a window with the name "MyWindow"

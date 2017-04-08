@@ -16,16 +16,9 @@ To pass arguments i.e. input?
 */
 
 
-#include "opencv2/photo.hpp"
-#include "opencv2/imgproc.hpp"
-#include <opencv2/highgui.hpp>
 #include "opencv2/highgui/highgui.hpp"
-#include <opencv2/core.hpp>
-#include "opencv2/imgcodecs.hpp"
 #include <string> 
 #include <iostream>
-#include <vector>
-#include <numeric> 
 using namespace cv;
 using namespace std;
 
@@ -173,7 +166,7 @@ int main(int argc, const char** argv) {
 
 		
 	//TESTING PHASE!!!
-	Mat testimage = readimage("test7.png");
+	Mat testimage = readimage("test1.png");
 	//Get the feature vector by subtracting the average of test phase
 	testimage -= average;
 	imshow("windowzzzz", testimage);
@@ -204,9 +197,11 @@ int main(int argc, const char** argv) {
 		}
 	}
 
-	float averagenumb = accumulate(euclidiandist.begin(), euclidiandist.end(), 0.0) / euclidiandist.size();
+	float sum = 0;
+	for (int x : euclidiandist) 
+		sum += x;
+	float averagenumb = sum / euclidiandist.size();
 	cout << averagenumb << endl;
-	
 
 	//imwrite("result.jpg", average);
 	namedWindow("MyWindow", WINDOW_NORMAL); //create a window with the name "MyWindow"

@@ -166,7 +166,7 @@ int main(int argc, const char** argv) {
 
 		
 	//TESTING PHASE!!!
-	Mat testimage = readimage("test1.png");
+	Mat testimage = readimage("test4.png");
 	//Get the feature vector by subtracting the average of test phase
 	testimage -= average;
 	imshow("windowzzzz", testimage);
@@ -192,13 +192,13 @@ int main(int argc, const char** argv) {
 	vector<float>euclidiandist;
 	for (int i = 0; i < 10; i++) {
 		for (int n = 0; n < 4; n++) {
-			double dist = norm(eigenfacesvector[i], vectprojection[n], NORM_L2);
+			double dist = norm(eigenfacesvector[i]- vectprojection[n], NORM_L2); //Euclidian distance
 			euclidiandist.push_back(dist);
 		}
 	}
 
 	float sum = 0;
-	for (int x : euclidiandist) 
+	for (float x : euclidiandist) 
 		sum += x;
 	float averagenumb = sum / euclidiandist.size();
 	cout << averagenumb << endl;

@@ -25,6 +25,7 @@ To pass arguments i.e. input?
 #include <string> 
 #include <iostream>
 #include <vector>
+#include <numeric> 
 using namespace cv;
 using namespace std;
 
@@ -53,6 +54,7 @@ static  Mat formatImagesForPCA(const vector<Mat> &data) {
 
 
 // Normalizes a given image into a value range between 0 and 255.
+//	Given the address to the matrix.
 Mat norm_0_255(const Mat& src) {
 	// Create and return normalized image:
 	Mat dst;
@@ -87,7 +89,6 @@ int main(int argc, const char** argv) {
 	//Vector of Matrices will collect all images
 	vector<Mat> faces;
 
-
 	//read the rest of the images to add them up pixel by pixel to the collect array
 	int s = 0;
 	for (int i = 1; i <= 10; ++i) {
@@ -97,36 +98,39 @@ int main(int argc, const char** argv) {
 		//2. collect total values
 		for (int n = 0; n < 50; n++) {
 			for (int k = 0; k < 50; k++) {
-				//Target pixel value and store it in collect array
+				//Target pixel value and store it in collect array to perform pixel operations above 250
+				// Scalar type is a 3-channel data type. We just want the first channel
 				Scalar intensity = image.at<uchar>(n, k);
 				collect[n][k] += intensity.val[0];
 			}
 		}
 		//store image in vector
 		faces.push_back(image);
-		//3. input average back into one image to get the EIGENFACE
+		//3. input average back into one image to get the AVERAGE face
 		for (int n = 0; n < 50; n++) {
 			for (int k = 0; k < 50; k++) {
+				//Scalar type is necessary to keep the 3-channel data type of a Matrix
 				Scalar intensity2 = average.at<uchar>(n, k);
 				intensity2.val[0] = (collect[n][k]) / 10;
 				average.at<uchar>(n, k) = intensity2.val[0];
 			}
 		}
-
 	}
-	//subtract average faces:
+	//subtract average faces from every face:
 	for (int i = 0; i<10; i++) {
 		faces[i] -= average;
 		//imshow("window" + i, faces[i]);
 	}
+
 	//Get the covariance matrix
 	Mat combine = formatImagesForPCA(faces); //function for pushing all images into one matrix
 	Mat covariance, mean2;
+	//OpenCV function for getting the covariance matrix. Flag specify rows or columns
 	calcCovarMatrix(combine, covariance, mean2, COVAR_ROWS| cv::COVAR_NORMAL);
-
 	//cout << "covriance = " << endl << " " << covariance << endl << endl;
 	cout << covariance.size() << endl;
 	//imshow("Covariance", covariance);
+
 
 	//Get Egienvalues and eigenvectors
 	Mat eigenval, eigenvect;
@@ -134,8 +138,8 @@ int main(int argc, const char** argv) {
 	eigenval = pca.eigenvalues;
 	eigenvect = pca.eigenvectors;
 	cout << "eigenval = " << endl << " " << eigenval << endl << endl;
-	cout << "Eigenval size: " << eigenval.size() << " Eigenvect size: " << eigenvect.size() << endl;
 	//cout << "eigenvect = " << endl << " " << eigenvect << endl << endl;
+	cout << "Eigenval size: " << eigenval.size() << " Eigenvect size: " << eigenvect.size() << endl;
 
 
 	//Get the top 4 vectors from top 4 eigenvalues
@@ -145,53 +149,64 @@ int main(int argc, const char** argv) {
 	top4vectors.push_back(eigenvect.row(2));
 	top4vectors.push_back(eigenvect.row(3));
 
-
-	Mat mean = pca.mean.clone();
-	Mat eigenvalues = pca.eigenvalues.clone();
-	Mat eigenvectors = pca.eigenvectors.clone();
-
-	imshow("avg", norm_0_255(mean.reshape(1, faces[0].rows)));
-
-	// The first three eigenfaces:
-	imshow("pc1", norm_0_255(pca.eigenvectors.row(0)).reshape(1, faces[0].rows));
-	imshow("pc2", norm_0_255(pca.eigenvectors.row(1)).reshape(1, faces[0].rows));
-	imshow("pc3", norm_0_255(pca.eigenvectors.row(2)).reshape(1, faces[0].rows));
-	/**
 	//Multiply each eigenvector with each of the (face - average) matrix
-	vector<Mat> eigenfaces;
-	for (int n = 0; n < 4; n++) {
-		for (int i = 0; i < 10; i++) {
-			Mat ev = top4vectors.col(i).clone();
-			// Reshape to original size & normalize to [0...255] for imshow.
-			Mat grayscale = norm_0_255(ev.reshape(1, 50));
-			imshow("WHAT" + i + n, grayscale);
-			//eigenfaces.push_back(faces[i].mul(grayscale));
+	//Vector of images and vectors
+	vector<Mat> eigenfacesimage;
+	vector<Mat> eigenfacesvector;
 
+	for (int n = 0; n < 10; n++) {
+		for (int i = 0; i < 4; i++) {
+			//Nth row of (face-average) x ith row of eigenvector by component multiplcication .mul()
+			Mat eigenfacevector = combine.row(n).mul(top4vectors.row(i));
+			eigenfacesimage.push_back(norm_0_255(eigenfacevector).reshape(1, faces[0].rows));
+			eigenfacesvector.push_back(eigenfacevector);
+			
 		}
 	}
-	for (int i = 0; i < eigenfaces.size(); i++) {
-		//imshow("face" + i, eigenfaces[i]);
-	}
-	//Mat faces[0] = faces[0] - vectoreigen.row(0);
+	cout << "The amount of Eigenfaces are: "<< eigenfacesimage.size() << endl;
+	
+	//for (int i = 0; i < eigenfaces.size(); i++) {
+		//eigenfaces[i]= norm_0_255(eigenfaces[i].row.reshape(1, faces[0].rows));
+	//	imshow("face" + char(i), eigenfaces[i]);
+	//}
+	
 
-	/**
-	vector<Mat> eigenfaces;
-	for (int i = 0; i < combine.rows; i++) {
-		Mat p = LDA::subspaceProject(eigenvect, average, combine.row(i));
-		eigenfaces.push_back(p);
-		imshow("window"+i, eigenfaces[i]);
-	}
+		
+	//TESTING PHASE!!!
+	Mat testimage = readimage("test7.png");
+	//Get the feature vector by subtracting the average of test phase
+	testimage -= average;
+	imshow("windowzzzz", testimage);
+	//Project the image on the eigenspace
+	//Convert the image to vector row	
+	Mat testvect2 = testimage.reshape(0, 1);
+	Mat testvect;
+	testvect2.convertTo(testvect, CV_32FC1);
 
-	Mat eigenfaces(2500, 40, CV_32F);
-	for (int i = 0; i == 3; i++) {
-		for (int x = 0; x < 10; x++) {
-			for (int y = 0; y < 2500; y++) {
-				eigenfaces.at<float>(y, (x + ((i * 10)))) = combine.at<float>(y, x) - eigenvect.at<float>(y, i);
-			}
+	//Multiplication by components
+	//Vector of images and vectors
+	vector<Mat> imageprojection;
+	vector<Mat> vectprojection;
+
+	for (int i = 0; i < 4; i++) {
+		//Nth row of (face-average) x ith row of eigenvector by component multiplcication .mul()
+		Mat temporary = testvect.mul(top4vectors.row(i));
+		imageprojection.push_back(norm_0_255(temporary).reshape(1, faces[0].rows));
+		vectprojection.push_back(temporary);
+	}
+	
+	//Calculate Euclidian distance
+	vector<float>euclidiandist;
+	for (int i = 0; i < 10; i++) {
+		for (int n = 0; n < 4; n++) {
+			double dist = norm(eigenfacesvector[i], vectprojection[n], NORM_L2);
+			euclidiandist.push_back(dist);
 		}
-
 	}
-	*/
+
+	float averagenumb = accumulate(euclidiandist.begin(), euclidiandist.end(), 0.0) / euclidiandist.size();
+	cout << averagenumb << endl;
+	
 
 	//imwrite("result.jpg", average);
 	namedWindow("MyWindow", WINDOW_NORMAL); //create a window with the name "MyWindow"

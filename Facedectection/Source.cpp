@@ -1,18 +1,10 @@
 /*
 * Facedetection.cpp
-*
 * Using OpenCV
-* Linking opencv to VisualStuido:
-*	right click project in the Solution Explorer and click 'Properties', click 'C/C++'.
-*	Let's add the OpenCV resource by pasting the include directory into 'Additional Include Libraries', for example: C:\Users\Magnus\Documents\opencv\build\include, and click 'Apply'
-*	To link the libraries: go to 'Linker' -> 'General' and pase C:\Users\Magnus\Documents\opencv\build\x64\vc14\lib in 'Additional Library Directories'.
 
-* Go to 'Linker' -> 'Input' ->'Additional Dependencies' -> paste 'opencv_world320d.lib' (remember - 'd' in this library file denotes debugging, 320 denotes version 3.20)
-
-To pass arguments i.e. input?
-* go to the directory where your project is saved. Create a folder named 'data' under the project folder.
-* add resources to the 'data' folder. let's say you have saved a image 'img.jpg'.
-* Go to project, right click 'properties' -> Debugging -> Command Arguments -- now type   ../data/img1.jpg and 'Apply'.
+To pass arguments i.e. input
+* This project uses images from a data folder. This should further be placed in the project file.
+* Go to project, right click 'properties' -> Debugging -> Command Arguments -- and set  ../data/ in the argument directory and 'Apply'.
 */
 
 
@@ -91,7 +83,7 @@ int main(int argc, const char** argv) {
 		//2. collect total values
 		for (int n = 0; n < 50; n++) {
 			for (int k = 0; k < 50; k++) {
-				//Target pixel value and store it in collect array to perform pixel operations above 250
+				//Target pixel value and store it in collect array to perform pixel operations above 255
 				// Scalar type is a 3-channel data type. We just want the first channel
 				Scalar intensity = image.at<uchar>(n, k);
 				collect[n][k] += intensity.val[0];
@@ -198,14 +190,21 @@ int main(int argc, const char** argv) {
 	}
 
 	float sum = 0;
+	int threshhold = 30;
+	bool face = 0;
 	for (int i = 0; i < euclidiandist.size(); i++) {
-
+		if (threshhold > euclidiandist[i]) {
+			face = 1;
+		}
 		cout << euclidiandist[i] << endl;
 		sum += euclidiandist[i];
 	}
 	float averagenumb = sum / euclidiandist.size();
 	cout << "Average distance: "<< averagenumb << endl;
 
+	if (face){
+		cout << "This is a face" << endl;
+	}
 	imwrite("average.jpg", average);
 	namedWindow("MyWindow", WINDOW_NORMAL); //create a window with the name "MyWindow"
 	imshow("MyWindow", average); //display the image which is stored in the 'img' in the "MyWindow" window

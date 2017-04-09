@@ -113,6 +113,7 @@ int main(int argc, const char** argv) {
 	for (int i = 0; i<10; i++) {
 		faces[i] -= average;
 		//imshow("window" + i, faces[i]);
+		imwrite("featureface" + to_string(i) + ".jpg", faces[i]);
 	}
 
 	//Get the covariance matrix
@@ -122,7 +123,7 @@ int main(int argc, const char** argv) {
 	calcCovarMatrix(combine, covariance, mean2, COVAR_ROWS| cv::COVAR_NORMAL);
 	//cout << "covriance = " << endl << " " << covariance << endl << endl;
 	cout << covariance.size() << endl;
-	//imshow("Covariance", covariance);
+	imwrite("Covariance.jpg", covariance);
 
 
 	//Get Egienvalues and eigenvectors
@@ -158,20 +159,18 @@ int main(int argc, const char** argv) {
 	}
 	cout << "The amount of Eigenfaces are: "<< eigenfacesimage.size() << endl;
 	
-	//for (int i = 0; i < eigenfaces.size(); i++) {
-		//eigenfaces[i]= norm_0_255(eigenfaces[i].row.reshape(1, faces[0].rows));
-	//	imshow("face" + char(i), eigenfaces[i]);
-	//}
+	for (int i = 0; i < eigenfacesimage.size(); i++) {
+		imwrite("eigenface" + to_string(i) + ".jpg", eigenfacesimage[i]);
+	}
 	
 
 		
 	//TESTING PHASE!!!
-	Mat testimage = readimage("test4.png");
+	Mat testimage = readimage("test2.png");
 	//Get the feature vector by subtracting the average of test phase
 	testimage -= average;
-	imshow("windowzzzz", testimage);
-	//Project the image on the eigenspace
-	//Convert the image to vector row	
+	imwrite("featurevector.jpg", testimage);
+	//Convert the image to vector row project the image on the eigenspac
 	Mat testvect2 = testimage.reshape(0, 1);
 	Mat testvect;
 	testvect2.convertTo(testvect, CV_32FC1);
@@ -185,6 +184,7 @@ int main(int argc, const char** argv) {
 		//Nth row of (face-average) x ith row of eigenvector by component multiplcication .mul()
 		Mat temporary = testvect.mul(top4vectors.row(i));
 		imageprojection.push_back(norm_0_255(temporary).reshape(1, faces[0].rows));
+		imwrite("testprojection" + to_string(i)+ ".jpg", imageprojection.back());
 		vectprojection.push_back(temporary);
 	}
 	
@@ -198,12 +198,15 @@ int main(int argc, const char** argv) {
 	}
 
 	float sum = 0;
-	for (float x : euclidiandist) 
-		sum += x;
-	float averagenumb = sum / euclidiandist.size();
-	cout << averagenumb << endl;
+	for (int i = 0; i < euclidiandist.size(); i++) {
 
-	//imwrite("result.jpg", average);
+		cout << euclidiandist[i] << endl;
+		sum += euclidiandist[i];
+	}
+	float averagenumb = sum / euclidiandist.size();
+	cout << "Average distance: "<< averagenumb << endl;
+
+	imwrite("average.jpg", average);
 	namedWindow("MyWindow", WINDOW_NORMAL); //create a window with the name "MyWindow"
 	imshow("MyWindow", average); //display the image which is stored in the 'img' in the "MyWindow" window
 
@@ -214,23 +217,3 @@ int main(int argc, const char** argv) {
 
 	return 0;
 }
-
-/**
-//combined vector
-int **vectors;
-vectors = new int*[11];
-for (int x = 0; x < 11; ++x) {
-vectors[x] = new int[2500];
-for (int y = 0; y < 2500; ++y) {
-vectors[x][y] = 0;
-}
-}
-
-for (int i = 0; i < 50; ++i) {
-delete[i]collect;
-}
-
-for (int i = 0; i < 11; ++i) {
-delete[i] vectors;
-}
-*/
